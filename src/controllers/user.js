@@ -12,8 +12,8 @@ import mongoose from "mongoose";
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
-    user: process.env.EMAIL, // Replace with your email
-    pass: process.env.PASSWORD, // Replace with your email password
+    user: process.env.EMAIL, 
+    pass: process.env.PASSWORD, 
   },
 });
 
@@ -23,7 +23,6 @@ export const signupPost = async (req, res) => {
   const { name, email, password } = req.body;
 
   try {
-    // Check if the user already exists in the database
     const existingUser = await userCollection.findOne({ email });
     if (existingUser) {
       return res.status(400).json({ message: 'User already exists' });
@@ -35,7 +34,7 @@ export const signupPost = async (req, res) => {
 
 
     let mailOptions = {
-      from: process.env.EMAIL, // Replace with your email
+      from: process.env.EMAIL, 
       to: email,
       subject: 'OTP Verification for Voyage Account Registration',
       text: `Your OTP is: ${otp}`,
@@ -64,7 +63,6 @@ export const verifyOtp = async (req, res) => {
     const user = new userCollection({ name, email, password });
     await user.save();
 
-    // Clear temporary storage
     delete temporaryUserData[email];
 
     res.status(200).json({ message: 'User verified successfully' });
@@ -235,7 +233,6 @@ export const loginPost = async (req, res) => {
   };
 
   export const uploadProfilePicture = async (req, res) => {
-    // Middleware to parse form data including files and other fields
     upload.single('profilePic')(req, res, async (err) => {
       if (err) {
         return res.status(500).json({ message: 'Error uploading file', error: err });
@@ -287,7 +284,7 @@ export const loginPost = async (req, res) => {
 
   export const getAllProperties = async (req, res) => {
     const { destination } = req.query;
-    const filter = { status: true }; // Ensure only properties with status: true are returned
+    const filter = { status: true }; 
     
     if (destination) {
       filter.destination = destination;
@@ -332,7 +329,6 @@ export const toggleWishlistStatus = async(req,res)=>{
   try {
     let wishlist = await wishlistcollection.findOne({userEmail});
     if (wishlist) {
-      // Check if the propertyId is already in the wishlist to avoid duplicates
       const propertyExists = wishlist.wishlist.some(item => item.propertyId === propertyId);
       
       if (!propertyExists) {
@@ -343,7 +339,6 @@ export const toggleWishlistStatus = async(req,res)=>{
         res.status(200).json({ message: "Property already in wishlist" });
       }
     } else {
-      // Create a new wishlist for the user
       wishlist = new wishlistcollection({
         userEmail,
         wishlist: [{ propertyId }]
@@ -364,7 +359,6 @@ export const removeWishlist = async (req, res) => {
     let wishlist = await wishlistcollection.findOne({ userEmail });
 
     if (wishlist) {
-      // Filter out the propertyId from the wishlist
       wishlist.wishlist = wishlist.wishlist.filter(item => !item.propertyId.equals(propertyId));
       await wishlist.save();
       res.status(200).json({ isInWishlist: false, message: "Property removed from wishlist" });
@@ -502,5 +496,79 @@ export const getCheckoutHotelDetails = async (req, res) => {
   } catch (error) {
     console.error('Error fetching hotel and room details:', error);
     return res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+export const createBooking = async(req,res)=>{
+  try {
+    const {
+        userName,
+        mobile,
+        userEmail,
+        paymentId,
+        paymentMethod,
+        paymentDate,
+        paymentStatus,
+        noofdays,
+        propertyId,
+        checkInDate,
+        checkOutDate,
+        travellers,
+        rooms,
+        roomId,
+        amount,
+        bookingDate
+    } = req.body;
+
+    
+    // Validate incoming data
+    if (!userName || !mobile || !userEmail || !propertyId || !checkInDate || !checkOutDate || !noofdays || !amount) {
+        return res.status(400).json({ success: false, message: 'Missing required fields' });
+    }
+    
+    const newBooking = new bookingscollection({
+        userName,
+        mobile,
+        userEmail,
+        propertyId,
+        checkInDate,
+        checkOutDate,
+        travellers,
+        noofdays,
+        room: [{ roomId, quantity: rooms }],
+        payment: [{
+            method: paymentMethod,
+            paymentId,
+            status: paymentStatus,
+            date: paymentDate
+        }],
+        bookingDate,
+        amount
+    });
+
+    await newBooking.save();
+
+    res.status(201).json({ success: true, message: 'Booking created successfully', booking: newBooking });
+} catch (error) {
+    console.error('Error creating booking:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+}
+}
+
+export const getUserBookings = async (req, res) => {
+  try {
+    const { userEmail } = req.query;
+    if (!userEmail) {
+      return res.status(400).json({ success: false, message: 'User email is required' });
+    }
+
+    const bookings = await bookingscollection.find({ userEmail })
+      .populate('propertyId') // Populate property details
+      .populate('room.roomId'); // Populate room details
+
+    res.status(200).json({ success: true, bookings });
+  } catch (error) {
+    console.error('Error fetching bookings:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
   }
 };

@@ -6,19 +6,25 @@ const { Schema } = mongoose;
 
 
 const bookingschema = new mongoose.Schema({
-    userId:{
-        type: mongoose.Schema.Types.ObjectId,
+    userEmail:{
+        type: String,
         ref: 'Users'
     },
     propertyId:{
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Properties'
     },
-    fromDate:{
+    checkInDate:{
         type: Date
     },
-    toDate:{
+    checkOutDate:{
         type: Date
+    },
+    noofdays:{
+        type: Date
+    },
+    travellers:{
+        type:Date
     },
     room:[{
         roomId:{
@@ -32,13 +38,33 @@ const bookingschema = new mongoose.Schema({
         method:{
             type:String
         },
+        paymentId:{
+            type:String
+        },
         status:{
-            type:Boolean
+            type:String
         },
         date:{
             type:Date
         }
     }],
+    bookingDate:{
+        type:Date
+    },
+    userName:{
+        type:String
+    },
+    mobile:{
+        type:Number
+    },
+    coupon:[{
+        name:{
+            type:String
+        },
+        discount:{
+            type:Number
+        }
+    }]
 
 });
 
