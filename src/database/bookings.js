@@ -21,16 +21,16 @@ const bookingschema = new mongoose.Schema({
         type: Date
     },
     noofdays:{
-        type: Date
+        type: Number
     },
     travellers:{
-        type:Date
+        type:Number
     },
     room:[{
         roomId:{
             type: mongoose.Schema.Types.ObjectId
         },
-        quandity:{
+        quantity:{
             type: Number
         }
     }],
@@ -46,6 +46,9 @@ const bookingschema = new mongoose.Schema({
         },
         date:{
             type:Date
+        },
+        amountPaid:{
+            type:Number
         }
     }],
     bookingDate:{

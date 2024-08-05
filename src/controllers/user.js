@@ -521,7 +521,6 @@ export const createBooking = async(req,res)=>{
     } = req.body;
 
     
-    // Validate incoming data
     if (!userName || !mobile || !userEmail || !propertyId || !checkInDate || !checkOutDate || !noofdays || !amount) {
         return res.status(400).json({ success: false, message: 'Missing required fields' });
     }
@@ -540,7 +539,8 @@ export const createBooking = async(req,res)=>{
             method: paymentMethod,
             paymentId,
             status: paymentStatus,
-            date: paymentDate
+            date: paymentDate,
+            amountPaid:amount
         }],
         bookingDate,
         amount
@@ -570,5 +570,21 @@ export const getUserBookings = async (req, res) => {
   } catch (error) {
     console.error('Error fetching bookings:', error);
     res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+export const getBookingDetails = async (req, res) => {
+  try {
+    const bookingId = req.params.bookingId;
+    const booking = await bookingscollection.findById(bookingId);
+
+    if (!booking) {
+      return res.status(404).json({ message: 'Booking not found' });
+    }
+
+    res.status(200).json(booking);
+  } catch (error) {
+    console.error('Error fetching booking details:', error);
+    res.status(500).json({ message: 'Server error' });
   }
 };

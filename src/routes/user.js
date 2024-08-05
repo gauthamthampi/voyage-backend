@@ -5,7 +5,7 @@ import { signupPost,loginPost,createUserGoogle,getUserDetailsByEmail,
         ,getPropertyDetailsById,cancelPremium,checkWishlistStatus,toggleWishlistStatus,
          removeWishlist,getWishlist,getUserdestinations,uploadProfilePicture,postCheckAvailability,
         getCheckoutHotelDetails, createBooking,
-        getUserBookings} 
+        getUserBookings, getBookingDetails} 
          from "../controllers/user.js";
 
 router.post("/signup",signupPost)
@@ -29,6 +29,7 @@ router.post("/api/check-roomAvailability", postCheckAvailability)
 router.get("/api/checkout/getHotelDetails",getCheckoutHotelDetails)
 router.post("/api/createbooking", createBooking)
 router.get('/api/getUserBookings', getUserBookings)
+router.get('/api/getBookingDetails/:bookingId',getBookingDetails)
 
 
 export default router;
