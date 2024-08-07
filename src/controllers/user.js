@@ -1,12 +1,12 @@
-import userCollection from "../database/users.js"
+import userCollection from "../models/users.js"
 import bcrypt from "bcrypt"
 import jwt from "jsonwebtoken"
 import nodemailer from "nodemailer"
-import destinationcollection from "../database/destinations.js";
-import propertycollection from "../database/properties.js";
-import wishlistcollection from "../database/wishlisht.js";
+import destinationcollection from "../models/destinations.js";
+import propertycollection from "../models/properties.js";
+import wishlistcollection from "../models/wishlisht.js";
 import {upload,deleteOldProfilePicture} from "../middleware/aws-s3.js";
-import bookingscollection from "../database/bookings.js";
+import bookingscollection from "../models/bookings.js";
 import mongoose from "mongoose";
 
 const transporter = nodemailer.createTransport({
@@ -520,7 +520,6 @@ export const createBooking = async(req,res)=>{
         bookingDate
     } = req.body;
 
-    
     if (!userName || !mobile || !userEmail || !propertyId || !checkInDate || !checkOutDate || !noofdays || !amount) {
         return res.status(400).json({ success: false, message: 'Missing required fields' });
     }
@@ -586,5 +585,55 @@ export const getBookingDetails = async (req, res) => {
   } catch (error) {
     console.error('Error fetching booking details:', error);
     res.status(500).json({ message: 'Server error' });
+  }
+};
+
+export const getProfileBookings = async (req, res) => {
+  const { userEmail, limit } = req.query;
+  
+  try {
+    const bookings = await bookingscollection
+      .find({ userEmail: userEmail })
+      .limit(parseInt(limit, 10))
+      .populate('propertyId'); 
+
+    const bookingsWithPropertyDetails = await Promise.all(
+      bookings.map(async (booking) => {
+        const property = await propertycollection.findById(booking.propertyId);
+        return {
+          ...booking.toObject(),
+          property
+        };
+      })
+    );
+
+    res.json(bookingsWithPropertyDetails);
+  } catch (error) {
+    console.error('Error fetching bookings:', error);
+    res.status(500).send('Server Error');
+  }
+};
+
+export const cancelBookingProfile = async (req, res) => {
+  const { bookingId } = req.params;
+
+  try {
+    const booking = await bookingscollection.findById(bookingId);
+
+    if (!booking) {
+      return res.status(404).json({ message: 'Booking not found' });
+    }
+
+    if (booking.status === 'Cancelled') {
+      return res.status(400).json({ message: 'Booking is already cancelled' });
+    }
+
+    booking.status = 'Cancelled';
+    await booking.save();
+
+    res.json({ message: 'Booking cancelled successfully' });
+  } catch (error) {
+    console.error('Error cancelling booking:', error);
+    res.status(500).send('Server Error');
   }
 };

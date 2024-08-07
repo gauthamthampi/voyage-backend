@@ -67,7 +67,11 @@ const bookingschema = new mongoose.Schema({
         discount:{
             type:Number
         }
-    }]
+    }],
+    status:{
+        type:String,
+        default:"Upcoming"
+    }
 
 });
 

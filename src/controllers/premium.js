@@ -1,10 +1,10 @@
-import userCollection from "../database/users.js"
+import userCollection from "../models/users.js"
 import bcrypt from "bcrypt"
 import jwt from "jsonwebtoken"
 import nodemailer from "nodemailer"
-import destinationcollection from "../database/destinations.js";
+import destinationcollection from "../models/destinations.js";
 import upload from '../middleware/multer.js';
-import propertycollection from "../database/properties.js";
+import propertycollection from "../models/properties.js";
 
 
 export const addProperty = async (req, res) => {

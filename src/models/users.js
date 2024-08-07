@@ -100,6 +100,14 @@ const userschema = new mongoose.Schema({
         type:Boolean,
         default:false
     },
+    online: { 
+        type: Boolean, 
+        default: false 
+    }, 
+    lastSeen: { 
+        type: Date, 
+        default: Date.now 
+    }, 
 });
 
 userschema.pre('save', async function (next) {

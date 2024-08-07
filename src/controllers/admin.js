@@ -1,8 +1,8 @@
 import jwt from 'jsonwebtoken';
 import dotenv from 'dotenv';
-import usercollection from '../database/users.js';
-import destinationcollection from '../database/destinations.js';
-import propertycollection from "../database/properties.js";
+import usercollection from '../models/users.js';
+import destinationcollection from '../models/destinations.js';
+import propertycollection from "../models/properties.js";
 import upload from '../middleware/multer.js';
 import { response } from 'express';
 
