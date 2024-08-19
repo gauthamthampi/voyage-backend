@@ -7,7 +7,10 @@ import propertycollection from "../models/properties.js";
 import wishlistcollection from "../models/wishlisht.js";
 import {upload,deleteOldProfilePicture} from "../middleware/aws-s3.js";
 import bookingscollection from "../models/bookings.js";
+import ratingcollection from "../models/ratings.js";
 import mongoose from "mongoose";
+import blogsCollection from "../models/blogs.js";
+import couponCollection from "../models/coupon.js";
 
 const transporter = nodemailer.createTransport({
   service: 'gmail',
@@ -162,7 +165,7 @@ export const loginPost = async (req, res) => {
       return res.status(401).json({ message: 'Entry Restricted!' });
     }
     
-    const token = jwt.sign({ email: user.email }, 'secretkey', { expiresIn: '1h' });
+    const token = jwt.sign({ email: user.email }, 'secretkey', { expiresIn: '24h' });
     return res.json({ 
       message: 'Login successful', 
       token, 
@@ -499,60 +502,92 @@ export const getCheckoutHotelDetails = async (req, res) => {
   }
 };
 
-export const createBooking = async(req,res)=>{
-  try {
-    const {
-        userName,
-        mobile,
-        userEmail,
-        paymentId,
-        paymentMethod,
-        paymentDate,
-        paymentStatus,
-        noofdays,
-        propertyId,
-        checkInDate,
-        checkOutDate,
-        travellers,
-        rooms,
-        roomId,
-        amount,
-        bookingDate
-    } = req.body;
 
-    if (!userName || !mobile || !userEmail || !propertyId || !checkInDate || !checkOutDate || !noofdays || !amount) {
-        return res.status(400).json({ success: false, message: 'Missing required fields' });
-    }
-    
-    const newBooking = new bookingscollection({
-        userName,
-        mobile,
-        userEmail,
-        propertyId,
-        checkInDate,
-        checkOutDate,
-        travellers,
-        noofdays,
-        room: [{ roomId, quantity: rooms }],
-        payment: [{
-            method: paymentMethod,
+export const createBooking = async (req, res) => {
+    try {
+        const {
+            userName,
+            mobile,
+            userEmail,
             paymentId,
-            status: paymentStatus,
-            date: paymentDate,
-            amountPaid:amount
-        }],
-        bookingDate,
-        amount
-    });
+            paymentMethod,
+            paymentDate,
+            paymentStatus,
+            noofdays,
+            propertyId,
+            checkInDate,
+            checkOutDate,
+            travellers,
+            rooms,
+            roomId,
+            amount,
+            bookingDate,
+            coupon
+        } = req.body;
 
-    await newBooking.save();
+        console.log(coupon+"coup");
+        
 
-    res.status(201).json({ success: true, message: 'Booking created successfully', booking: newBooking });
-} catch (error) {
-    console.error('Error creating booking:', error);
-    res.status(500).json({ success: false, message: 'Server error' });
-}
-}
+        if (!userName || !mobile || !userEmail || !propertyId || !checkInDate || !checkOutDate || !noofdays || !amount) {
+            return res.status(400).json({ success: false, message: 'Missing required fields' });
+        }
+        
+        const newBooking = new bookingscollection({
+            userName,
+            mobile,
+            userEmail,
+            propertyId,
+            checkInDate,
+            checkOutDate,
+            travellers,
+            noofdays,
+            room: [{ roomId, quantity: rooms }],
+            payment: [{
+                method: paymentMethod,
+                paymentId,
+                status: paymentStatus,
+                date: paymentDate,
+                amountPaid: amount
+            }],
+            bookingDate,
+            amount,
+            coupon
+        });
+
+        await newBooking.save();
+
+        const applicableCoupons = await couponCollection.find({
+            isActive: true,
+            minPurchaseAmount: { $lte: amount }
+        });
+
+        if (applicableCoupons.length > 0) {
+            const user = await userCollection.findOne({ email: userEmail });
+
+            if (user) {
+                applicableCoupons.forEach(coupon => {
+                    const existingCoupon = user.coupons.find(c => c.id === coupon._id.toString());
+
+                    if (existingCoupon) {
+                        existingCoupon.quantity += 1;
+                    } else {
+                        user.coupons.push({
+                            id: coupon._id.toString(),
+                            quantity: 1
+                        });
+                    }
+                });
+
+                await user.save();
+            }
+        }
+
+        res.status(201).json({ success: true, message: 'Booking created successfully', booking: newBooking });
+    } catch (error) {
+        console.error('Error creating booking:', error);
+        res.status(500).json({ success: false, message: 'Server error' });
+    }
+};
 
 export const getUserBookings = async (req, res) => {
   try {
@@ -561,9 +596,11 @@ export const getUserBookings = async (req, res) => {
       return res.status(400).json({ success: false, message: 'User email is required' });
     }
 
-    const bookings = await bookingscollection.find({ userEmail })
-      .populate('propertyId') // Populate property details
-      .populate('room.roomId'); // Populate room details
+    const bookings = await bookingscollection
+      .find({ userEmail })
+      .populate('propertyId') 
+      .populate('room.roomId')
+      .sort({ bookingDate: -1 });
 
     res.status(200).json({ success: true, bookings });
   } catch (error) {
@@ -637,3 +674,219 @@ export const cancelBookingProfile = async (req, res) => {
     res.status(500).send('Server Error');
   }
 };
+
+export const getAddRating = async (req, res) => {
+  const { userEmail, propertyId, bookingId, rating, review } = req.body;
+  try {
+    const newRating = new ratingcollection({
+      userEmail,
+      bookingId,
+      propertyId,
+      rating,
+      review,
+    });
+    await newRating.save();
+    await bookingscollection.findByIdAndUpdate(bookingId, { ratingSubmission: true });
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error submitting rating:', error);
+    res.json({ success: false });
+  }
+}
+
+export const fetchPropertyRatings = async (req, res) => {
+  const { id } = req.params;
+  try {
+      const ratings = await ratingcollection.find({ propertyId: id }).lean();
+
+      if (!ratings.length) {
+        return res.status(400).json({ message: "No ratings found" });
+      }
+
+      const ratingsWithUserDetails = await Promise.all(ratings.map(async (rating) => {
+          const user = await userCollection.findOne({ email: rating.userEmail }).lean();
+          return {
+              ...rating,
+              userName: user ? user.name : 'Anonymous',
+              userPhoto: user ? user.profilePic : 'default',
+          };
+      }));
+
+      res.json(ratingsWithUserDetails);
+  } catch (error) {
+      console.error('Error fetching ratings:', error);
+      res.status(500).json({ error: 'Failed to fetch ratings' });
+  }
+}
+
+export const getAvailableFilteredProperties = async (req, res) => {
+  const { checkInDate, checkOutDate } = req.query;
+  
+  if (!checkInDate || !checkOutDate) {
+    return res.status(400).json({ message: 'Check-in and check-out dates are required' });
+  }
+
+  try {
+    const from = new Date(checkInDate);
+    const to = new Date(checkOutDate);
+
+    if (from >= to) {
+      return res.status(400).json({ message: 'Check-out date must be after check-in date' });
+    }
+
+    if (from <= new Date() || to <= new Date()) {
+      return res.status(400).json({ message: 'Dates must be in the future' });
+    }
+
+    const properties = await propertycollection.find().populate('rooms');
+    const availableProperties = [];
+
+    for (const property of properties) {
+      let available = true;
+      
+      for (const room of property.rooms) {
+        const overlappingBookings = await bookingscollection.find({
+          propertyId: property._id,
+          $or: [
+            {
+              checkInDate: { $lte: to },
+              checkOutDate: { $gte: from }
+            },
+            {
+              checkInDate: { $gte: from },
+              checkOutDate: { $lte: to }
+            }
+          ]
+        });
+
+        const roomCapacity = room.availability;
+        let totalBookedRooms = overlappingBookings.reduce((acc, booking) => {
+          let bookedRoom = booking.room.find(r => r.roomId.toString() === room._id.toString());
+          return acc + (bookedRoom ? bookedRoom.quantity : 0);
+        }, 0);
+
+        if (totalBookedRooms + 1 > roomCapacity) {
+          available = false;
+          break;
+        }
+      }
+
+      if (available) {
+        availableProperties.push(property);
+      }
+    }
+
+    res.status(200).json(availableProperties);
+  } catch (error) {
+    console.error('Error fetching available properties:', error);
+    res.status(500).json({ message: 'Error fetching available properties', error });
+  }
+};
+
+export const getAllBlogs =  async (req, res) => {
+  try {
+    const blogs = await blogsCollection.find({});
+    res.json(blogs);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+}
+
+export const getArticle = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const article = await blogsCollection.findById(id);
+    
+    if (!article) {
+      return res.status(404).json({ message: 'Article not found' });
+    }
+
+    const writer = await userCollection.findOne({ email: article.writer });
+    
+    if (!writer) {
+      return res.status(404).json({ message: 'Writer not found' });
+    }
+
+    const response = {
+      ...article.toObject(),
+      writerName: writer.name,
+      writerPhoto: writer.profilePic, 
+    };
+
+    res.json(response);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+
+export const getUserCoupons = async (req, res) => {
+  try {
+    const { userEmail } = req.query;
+
+    const user = await userCollection.findOne({ email: userEmail });
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    const couponIds = user.coupons.map(coupon => coupon.id);
+
+    const coupons = await couponCollection.find({ _id: { $in: couponIds } });
+
+    return res.status(200).json({ success: true, coupons });
+  } catch (error) {
+    console.error('Error fetching user coupons:', error);
+    return res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+export const getPropertyRatings = async (req, res) => {
+  try {
+      const { propertyId } = req.params;
+
+      const result = await ratingcollection.aggregate([
+          { $match: { propertyId: new mongoose.Types.ObjectId(propertyId) } },
+          {
+              $group: {
+                  _id: null,
+                  averageLocation: { $avg: "$rating.location" },
+                  averageCleanliness: { $avg: "$rating.cleanliness" },
+                  averageFacilities: { $avg: "$rating.facilities" },
+                  averageService: { $avg: "$rating.service" },
+                  overallAverage: { $avg: "$rating.average" },
+              }
+          }
+      ]);
+
+      if (result.length === 0) {
+          return res.status(404).json({ message: 'No ratings found for this property' });
+      }
+
+      const averages = {
+          location: result[0].averageLocation,
+          cleanliness: result[0].averageCleanliness,
+          facilities: result[0].averageFacilities,
+          service: result[0].averageService,
+          overallAverage: result[0].overallAverage
+      };
+
+      res.json(averages);
+  } catch (error) {
+      console.error(error);
+      res.status(500).json({ message: 'Server error' });
+  }
+}
+
+export const getCouponDetails = async(req,res)=>{
+  try{
+    const {id} = req.params
+
+    const coupon = await couponCollection.findById(id)
+    res.json(coupon)
+  }catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Server error' });
+}
+}

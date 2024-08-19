@@ -60,17 +60,18 @@ const bookingschema = new mongoose.Schema({
     mobile:{
         type:Number
     },
-    coupon:[{
-        name:{
-            type:String
-        },
-        discount:{
-            type:Number
-        }
-    }],
+    coupon:{
+        id:{
+            type:  mongoose.Schema.Types.ObjectId,
+            ref : 'Coupons'
+    }},
     status:{
         type:String,
         default:"Upcoming"
+    },
+    ratingSubmission:{
+        type:Boolean,
+        default:false
     }
 
 });

@@ -113,6 +113,12 @@ const socketManager = (server) => {
         profilePic: sender.profilePic || defaultProfilePic,
       });
 
+      io.to(receiverEmail).emit('notifyNewMessage', {
+        sender: senderEmail,
+        message: message,
+        timestamp: newMessage.timestamp,
+      });
+
       io.emit('getPreviousChats', senderEmail);
     });
 

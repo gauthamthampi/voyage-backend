@@ -47,16 +47,10 @@ const userschema = new mongoose.Schema({
         type:Date
     },
     coupons:[{
-        name:{
+        id:{
             type:String
         },
-        description:{
-            type:String
-        },
-        expirydate:{
-            type:Date
-        },
-        discount:{
+        quandity:{
             type:Number
         }
     }],

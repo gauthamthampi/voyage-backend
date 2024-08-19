@@ -16,13 +16,12 @@ const propertyschema = new mongoose.Schema({
         type: String,
     },
     location:{
-        type: String,
-    },
-    latitue:{
-        type:Number
-    },
-    longitude:{
-        type:Number
+        latitude:{
+            type:Number
+        },
+        longitude:{
+            type:Number
+        }
     },
     status:{
         type: Boolean,
