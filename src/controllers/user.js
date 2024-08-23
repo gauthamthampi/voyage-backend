@@ -78,16 +78,16 @@ export const verifyOtp = async (req, res) => {
 
 export const premiumUpdation =  async (req, res) => {
   try {
-    const { userId } = req.body;
-
-    const user = await userCollection.findById(userId);
+    const { email } = req.body;
+    
+    const user = await userCollection.findOne({email:email});
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
-
+    
     user.premium = true;
     user.premiumDate = new Date();
-
+    
     const welcomeCoupons = await couponCollection.find({ type: 'welcome' });
 
     welcomeCoupons.forEach(coupon => {
@@ -98,7 +98,7 @@ export const premiumUpdation =  async (req, res) => {
     });
 
     await user.save();
-    res.status(200).json({ message: 'Premium subscription updated and welcome coupons added successfully' });
+    res.status(200).json({ message: 'Premium subscription updated and welcome coupons added successfully',success:true });
   } catch (error) {
     console.error('Error updating premium subscription:', error);
     res.status(500).json({ message: 'Internal server error' });
@@ -538,108 +538,122 @@ export const getCheckoutHotelDetails = async (req, res) => {
 
 
 export const createBooking = async (req, res) => {
-    try {
-        const {
-            userName,
-            mobile,
-            userEmail,
-            paymentId,
-            paymentMethod,
-            paymentDate,
-            paymentStatus,
-            noofdays,
-            propertyId,
-            checkInDate,
-            checkOutDate,
-            travellers,
-            rooms,
-            roomId,
-            amount,
-            bookingDate,
-            coupon
-        } = req.body;
-        
+  try {
+      const {
+          userName,
+          mobile,
+          userEmail,
+          paymentId,
+          paymentMethod,
+          paymentDate,
+          paymentStatus,
+          noofdays,
+          propertyId,
+          checkInDate,
+          checkOutDate,
+          travellers,
+          rooms,
+          roomId,
+          amount,
+          bookingDate,
+          coupon
+      } = req.body;
+      
 
-        if (!userName || !mobile || !userEmail || !propertyId || !checkInDate || !checkOutDate || !noofdays || !amount) {
-            return res.status(400).json({ success: false, message: 'Missing required fields' });
-        }
-        
-        const newBooking = new bookingscollection({
-            userName,
-            mobile,
-            userEmail,
-            propertyId,
-            checkInDate,
-            checkOutDate,
-            travellers,
-            noofdays,
-            room: [{ roomId, quantity: rooms }],
-            payment: [{
-                method: paymentMethod,
-                paymentId,
-                status: paymentStatus,
-                date: paymentDate,
-                amountPaid: amount
-            }],
-            bookingDate,
-            amount,
-            coupon
-        });
+      if (!userName || !mobile || !userEmail || !propertyId || !checkInDate || !checkOutDate || !noofdays || !amount) {
+          return res.status(400).json({ success: false, message: 'Missing required fields' });
+      }
+      
+      const newBooking = new bookingscollection({
+          userName,
+          mobile,
+          userEmail,
+          propertyId,
+          checkInDate,
+          checkOutDate,
+          travellers,
+          noofdays,
+          room: [{ roomId, quantity: rooms }],
+          payment: [{
+              method: paymentMethod,
+              paymentId,
+              status: paymentStatus,
+              date: paymentDate,
+              amountPaid: amount
+          }],
+          bookingDate,
+          amount,
+          coupon
+      });
 
-        await newBooking.save();
+      await newBooking.save();
 
-        const applicableCoupons = await couponCollection.find({
-            isActive: true,
-            minPurchaseAmount: { $lte: amount }
-        });
+      const applicableCoupons = await couponCollection.find({
+          isActive: true,
+          minPurchaseAmount: { $lte: amount }
+      });
 
-        if (applicableCoupons.length > 0) {
-            const user = await userCollection.findOne({ email: userEmail });
+      if (applicableCoupons.length > 0) {
+          const user = await userCollection.findOne({ email: userEmail });
 
-            if (user) {
-                applicableCoupons.forEach(coupon => {
-                    const existingCoupon = user.coupons.find(c => c.id === coupon._id.toString());
+          if (user) {
+              applicableCoupons.forEach(coupon => {
+                  const existingCoupon = user.coupons.find(c => c.id === coupon._id.toString());
 
-                    if (existingCoupon) {
-                        existingCoupon.quandity += 1;
-                    } else {
-                        user.coupons.push({
-                            id: coupon._id.toString(),
-                            quandity: 1
-                        });
-                    }
-                });
+                  if (existingCoupon) {
+                      existingCoupon.quandity += 1;
+                  } else {
+                      user.coupons.push({
+                          id: coupon._id.toString(),
+                          quandity: 1
+                      });
+                  }
+              });
 
-                await user.save();
-            }
-        }
+              await user.save();
+          }
+      }
 
-        res.status(201).json({ success: true, message: 'Booking created successfully', booking: newBooking });
-    } catch (error) {
-        console.error('Error creating booking:', error);
-        res.status(500).json({ success: false, message: 'Server error' });
-    }
+      res.status(201).json({ success: true, message: 'Booking created successfully', booking: newBooking });
+  } catch (error) {
+      console.error('Error creating booking:', error);
+      res.status(500).json({ success: false, message: 'Server error' });
+  }
 };
 
 export const getUserBookings = async (req, res) => {
   try {
-    const { userEmail } = req.query;
+    const { userEmail, page = 1, limit = 10 } = req.query;
+
     if (!userEmail) {
       return res.status(400).json({ success: false, message: 'User email is required' });
     }
+
+    const skip = (page - 1) * limit;
 
     const bookings = await bookingscollection
       .find({ userEmail })
       .populate('propertyId') 
       .populate('room.roomId')
-      .sort({ bookingDate: -1 });
+      .sort({ bookingDate: -1 })
+      .skip(skip)
+      .limit(parseInt(limit));
 
-    res.status(200).json({ success: true, bookings });
+    const totalBookings = await bookingscollection.countDocuments({ userEmail });
+
+    res.status(200).json({ 
+      success: true, 
+      bookings,
+      totalBookings,
+      currentPage: page,
+      totalPages: Math.ceil(totalBookings / limit)
+    });
   } catch (error) {
     console.error('Error fetching bookings:', error);
     res.status(500).json({ success: false, message: 'Server error' });
   }
 };
+
 
 export const getBookingDetails = async (req, res) => {
   try {

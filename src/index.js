@@ -25,7 +25,8 @@ app.use(cors());
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 app.use('/uploads', express.static('uploads'));
 
-const connect = mongoose.connect('mongodb://localhost:27017/VOYAGE');
+// const connect = mongoose.connect('mongodb://localhost:27017/VOYAGE');
+const connect = mongoose.connect(`mongodb+srv://voyagedb:${process.env.dbPassAtlas}@voyagecluster.8toyd.mongodb.net/?retryWrites=true&w=majority&appName=voyageCluster`)
 
 connect.then(() => {
   console.log('Database connected successfully');

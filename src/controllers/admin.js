@@ -116,65 +116,62 @@ export const adddestination = async (req, res) => {
       res.status(400).json({ errors: [{ message: err }] });
       console.log(err);
     } else {
-      if (req.file == undefined) {
-        res.status(400).json({ errors: [{ message: 'No file selected' }] });
-      } else {
-        const { name, description, bestSeason, thingsToDo } = req.body;
-        const photos = req.file.filename;
-      
-        const newDestination = new destinationcollection({
-          name,
-          description,
-          photos, 
-          bestSeason,
-          thingsToDo: JSON.parse(thingsToDo),
-        });
-
-        try {
-          const savedDestination = await newDestination.save();
-          res.status(201).json(savedDestination);
-        } catch (error) {
-          res.status(500).json({ errors: [{ message: error.message }] });
-        }
-      }
-    }
-  });
-}
-
-
-export const updateDestination = async (req, res) => {
-  const destinationId = req.params.id;
-
-  upload(req, res, async (err) => {
-    if (err) {
-      return res.status(400).json({ errors: { coverPhoto: err } });
-    } else {
       const { name, description, bestSeason, thingsToDo } = req.body;
 
+      const coverPhoto = req.files.length > 0 ? req.files[0].filename : null;
+
+      const newDestination = new destinationcollection({
+        name,
+        description,
+        coverPhoto, 
+        bestSeason,
+        thingsToDo: JSON.parse(thingsToDo),
+      });
+
       try {
-        const destination = await destinationcollection.findById(destinationId);
-
-        if (!destination) {
-          return res.status(404).json({ error: 'Destination not found' });
-        }
-
-        destination.name = name || destination.name;
-        destination.description = description || destination.description;
-        destination.bestSeason = bestSeason || destination.bestSeason;
-        destination.thingsToDo = thingsToDo ? JSON.parse(thingsToDo) : destination.thingsToDo;
-
-        if (req.file) {
-          destination.coverPhoto = req.file.filename;
-        }
-
-        const updatedDestination = await destination.save();
-        res.status(200).json(updatedDestination);
+        const savedDestination = await newDestination.save();
+        res.status(201).json(savedDestination);
       } catch (error) {
-        res.status(500).json({ errors: error });
+        res.status(500).json({ errors: [{ message: error.message }] });
       }
     }
   });
 };
+
+
+
+export const updateDestination = async (req, res) => {
+  upload(req, res, async (err) => {
+    if (err) {
+      return res.status(400).json({ errors: [{ message: err }] });
+    }
+
+    const { id } = req.params;
+    const { name, description, bestSeason, thingsToDo } = req.body;
+
+    try {
+      const destination = await destinationcollection.findById(id);
+      if (!destination) {
+        return res.status(404).json({ errors: [{ message: "Destination not found" }] });
+      }
+
+      destination.name = name || destination.name;
+      destination.description = description || destination.description;
+      destination.bestSeason = bestSeason || destination.bestSeason;
+      destination.thingsToDo = thingsToDo ? JSON.parse(thingsToDo) : destination.thingsToDo;
+
+      if (req.files && req.files.length > 0) {
+        destination.coverPhoto = req.files[0].filename;
+      }
+
+      const updatedDestination = await destination.save();
+      res.status(200).json(updatedDestination);
+    } catch (error) {
+      res.status(500).json({ errors: [{ message: error.message }] });
+    }
+  });
+};
+
 
 export const getAllProperties = async(req,res)=>{
   try{

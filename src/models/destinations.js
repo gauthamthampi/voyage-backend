@@ -9,7 +9,7 @@ const destinationschema = new mongoose.Schema({
     name:{
         type: String,
     },
-    photos:{
+    coverPhoto:{
         type: String,
     },
     description:{

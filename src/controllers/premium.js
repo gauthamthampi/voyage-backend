@@ -7,7 +7,6 @@ import upload from '../middleware/multer.js';
 import propertycollection from "../models/properties.js";
 import bookingscollection from "../models/bookings.js";
 import blogsCollection from "../models/blogs.js";
-import e from "cors";
 
 
 export const addProperty = async (req, res) => {
@@ -31,7 +30,6 @@ export const addProperty = async (req, res) => {
           email
         } = req.body;
 
-        // Construct the location object
         const location = {
           latitude: parseFloat(latitude),
           longitude: parseFloat(longitude)
@@ -43,7 +41,7 @@ export const addProperty = async (req, res) => {
           name,
           photos,
           description,
-          location, // Use the constructed location object
+          location,
           destination,
           email,
           facilities: JSON.parse(facilities),
@@ -67,7 +65,7 @@ export const addProperty = async (req, res) => {
 
   export const getDestinations = async (req, res) => {
     try {
-      const destinations = await destinationcollection.find({}, 'name'); // Fetch only the names
+      const destinations = await destinationcollection.find({}, 'name');
       res.status(200).json(destinations);
     } catch (error) {
       res.status(500).json({ errors: error });
@@ -105,7 +103,6 @@ export const addProperty = async (req, res) => {
             property.name = name;
             property.description = description;
 
-            // Handle location data if latitude and longitude are provided
             if (latitude && longitude) {
                 property.location = {
                     latitude: parseFloat(latitude),
@@ -119,7 +116,6 @@ export const addProperty = async (req, res) => {
             property.rooms = JSON.parse(rooms);
             property.surroundings = JSON.parse(surroundings);
 
-            // Only update photos if new ones are uploaded
             if (photos.length > 0) {
                 property.photos = photos;
             }
@@ -275,7 +271,7 @@ export const addProperty = async (req, res) => {
       let photo = '';
   
       if (req.files && req.files.length > 0) {
-        photo = req.files[0].filename; // Single photo
+        photo = req.files[0].filename;  
       }
   
       try {
@@ -283,7 +279,7 @@ export const addProperty = async (req, res) => {
           title,
           content,
           writer,
-          photos: photo, // Store the single photo filename
+          photos: photo, 
           likes: 0,
           saved: 0,
         });
@@ -297,10 +293,10 @@ export const addProperty = async (req, res) => {
   };
   
   export const getBlogsByUser = async (req, res) => {
-    const { email } = req.query; // Or req.body if you're sending the email in the body
+    const { email } = req.query;
   
     try {
-      const blogs = await blogsCollection.find({ writer: email }); // Assuming 'writer' field stores the email
+      const blogs = await blogsCollection.find({ writer: email });
       res.status(200).json(blogs);
     } catch (error) {
       res.status(500).json({ error: 'Failed to fetch blogs.' });
@@ -326,10 +322,10 @@ export const addProperty = async (req, res) => {
           return res.status(404).json({ error: 'Blog not found' });
         }
   
-        let photo = existingBlog.photos; // Keep existing photo by default
+        let photo = existingBlog.photos;
   
         if (req.files && req.files.length > 0) {
-          photo = req.files[0].filename; // Replace with new photo if any
+          photo = req.files[0].filename; 
         }
   
         const updatedBlog = await blogsCollection.findByIdAndUpdate(

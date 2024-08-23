@@ -1,4 +1,3 @@
-// socket.js
 import { Server as SocketIOServer } from 'socket.io';
 import Message from '../models/message.js';
 import User from '../models/users.js';
@@ -12,19 +11,19 @@ const socketManager = (server) => {
 
   io.on('connection', (socket) => {
     console.log('New client connected');
-
+   
     const updateUserStatus = async (email, online) => {
       await User.findOneAndUpdate(
         { email },
         { online, lastSeen: online ? Date.now() : null }
       );
-      io.emit('updateUserStatus', { email, online }); // Notify all clients
+      io.emit('updateUserStatus', { email, online }); 
     };
 
     socket.on('joinRoom', async (room) => {
       console.log(`Joining room: ${room}`);
       socket.join(room);
-
+      
       const [senderEmail, receiverEmail] = room.split('-');
       const messages = await Message.find({
         $or: [
@@ -37,7 +36,7 @@ const socketManager = (server) => {
         { receiverEmail: senderEmail, senderEmail: receiverEmail, read: false },
         { $set: { read: true } }
       );
-
+           
       const sender = await User.findOne({ email: senderEmail });
       const receiver = await User.findOne({ email: receiverEmail });
 
@@ -127,9 +126,31 @@ const socketManager = (server) => {
         { receiverEmail, senderEmail, read: false },
         { $set: { read: true } }
       );
-
-      io.emit('getPreviousChats', senderEmail);
+    
+      const userMessages = await Message.find({
+        $or: [{ senderEmail }, { receiverEmail: senderEmail }],
+      }).sort({ timestamp: -1 });
+    
+      const chatSummaries = {};
+    
+      for (const msg of userMessages) {
+        const otherEmail = msg.senderEmail === senderEmail ? msg.receiverEmail : msg.senderEmail;
+        if (!chatSummaries[otherEmail]) {
+          const otherUser = await User.findOne({ email: otherEmail });
+          chatSummaries[otherEmail] = {
+            email: otherEmail,
+            name: otherUser.name,
+            profilePic: otherUser.profilePic || '/images/defaultdp.jpg',
+            lastMessage: msg.text,
+            newMessageCount: 0, 
+          };
+        }
+      }
+    
+      const chatList = Object.values(chatSummaries);
+      socket.emit('previousChats', chatList);
     });
+    
 
     socket.on('disconnect', () => {
       console.log('Client disconnected');
