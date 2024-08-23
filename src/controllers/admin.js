@@ -339,29 +339,25 @@ export const getCoupons = async(req,res)=>{
   }
 }
 
-export const addCoupon = async(req,res)=>{
+export const addCoupon = async (req, res) => {
   try {
-    const { code, description, discountValue, minPurchaseAmount } = req.body;
-
-    const existingCoupon = await couponCollection.findOne({ code });
-    if (existingCoupon) {
-      return res.status(400).json({ message: 'Coupon with this code already exists' });
-    }
-    
+    const { code, description, discountValue, minPurchaseAmount, type } = req.body;
     const newCoupon = new couponCollection({
       code,
       description,
       discountValue,
       minPurchaseAmount,
+      type,  // Example: Coupon valid for 30 days
+      timesUsed: 0,
+      isVisible: true,
     });
-    await newCoupon.save();
-    res.status(201).json(newCoupon);
+    const savedCoupon = await newCoupon.save();
+    res.status(201).json(savedCoupon);
   } catch (error) {
-    console.log(error);
-    
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ message: 'Error adding coupon', error });
   }
-}
+};
+
 
 export const editCoupon = async (req, res) => {
   try {

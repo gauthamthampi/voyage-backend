@@ -76,30 +76,35 @@ export const verifyOtp = async (req, res) => {
 };
 
 
-  export const premiumUpdation = async (req, res) => {
-  const { email } = req.body;
- 
+export const premiumUpdation =  async (req, res) => {
   try {
-    const currentDate = new Date();
-    const user = await userCollection.findOneAndUpdate(
-      { email: email },
-      { 
-        premium: true,
-        premiumDate: currentDate 
-      },
-      { new: true }
-    );
-    
-    if (user) {
-      res.status(200).json({ success: true, message: 'Premium status updated' });
-    } else {
-      res.status(404).json({ success: false, message: 'User not found' });
+    const { userId } = req.body;
+
+    const user = await userCollection.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
     }
+
+    user.premium = true;
+    user.premiumDate = new Date();
+
+    const welcomeCoupons = await couponCollection.find({ type: 'welcome' });
+
+    welcomeCoupons.forEach(coupon => {
+      const existingCoupon = user.coupons.find(c => c.id === coupon._id.toString());
+      if (!existingCoupon) {
+        user.coupons.push({ id: coupon._id.toString(), quantity: 1 });
+      }
+    });
+
+    await user.save();
+    res.status(200).json({ message: 'Premium subscription updated and welcome coupons added successfully' });
   } catch (error) {
-    console.error('Error updating premium status:', error);
-    res.status(500).json({ success: false, message: 'Internal server error' });
+    console.error('Error updating premium subscription:', error);
+    res.status(500).json({ message: 'Internal server error' });
   }
 };
+
 
 function differenceInMonths(date1, date2) {
   const diffInMilliseconds = Math.abs(date1 - date2);
@@ -398,6 +403,35 @@ export const getUserdestinations = async (req, res) => {
   }
 }
 
+export const getUserCouponsProfile =  async (req, res) => {
+  try {
+    const userEmail = req.query.email;
+    const user = await userCollection.findOne({ email: userEmail });
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    const couponIds = user.coupons.map(coupon => coupon.id);
+    const couponDetails = await couponCollection.find({ _id: { $in: couponIds } });
+
+    // Attach the quantity from user coupons to the corresponding coupon details
+    const couponsWithQuantity = couponDetails.map(coupon => {
+      const userCoupon = user.coupons.find(c => c.id === coupon._id.toString());
+      return {
+        ...coupon.toObject(), // Convert Mongoose document to plain object
+        quantity: userCoupon ? userCoupon.quandity : 0 // Attach the quantity from user data
+      };
+    });
+
+    res.status(200).json(couponsWithQuantity);
+  } catch (error) {
+    console.error('Error fetching user coupons:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+}
+
+
 export const postCheckAvailability = async (req, res) => {
   const { propertyId, roomCategory, checkInDate, checkOutDate, rooms, travellers } = req.body;
   if (typeof rooms !== 'number' || rooms < 1) {
@@ -477,14 +511,14 @@ export const getCheckoutHotelDetails = async (req, res) => {
 
     const hotelDetails = await propertycollection.findOne(
       { 'rooms._id': roomId },
-      { 'rooms.$': 1 }  // Projection to return only the matching room
+      { 'rooms.$': 1 }  
     );
 
     if (!hotelDetails || hotelDetails.rooms.length === 0) {
       return res.status(404).json({ error: 'Room not found' });
     }
 
-    const roomDetails = hotelDetails.rooms[0];  // Extract the matching room
+    const roomDetails = hotelDetails.rooms[0];  
 
     const response = {
       hotel: {
@@ -524,8 +558,6 @@ export const createBooking = async (req, res) => {
             bookingDate,
             coupon
         } = req.body;
-
-        console.log(coupon+"coup");
         
 
         if (!userName || !mobile || !userEmail || !propertyId || !checkInDate || !checkOutDate || !noofdays || !amount) {
@@ -569,11 +601,11 @@ export const createBooking = async (req, res) => {
                     const existingCoupon = user.coupons.find(c => c.id === coupon._id.toString());
 
                     if (existingCoupon) {
-                        existingCoupon.quantity += 1;
+                        existingCoupon.quandity += 1;
                     } else {
                         user.coupons.push({
                             id: coupon._id.toString(),
-                            quantity: 1
+                            quandity: 1
                         });
                     }
                 });
@@ -830,10 +862,11 @@ export const getUserCoupons = async (req, res) => {
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
-
-    const couponIds = user.coupons.map(coupon => coupon.id);
-
-    const coupons = await couponCollection.find({ _id: { $in: couponIds } });
+    const couponIds = user.coupons
+    .filter(coupon => coupon.quandity >= 1)
+    .map(coupon => coupon.id);
+  
+    const coupons = await couponCollection.find({ _id: { $in: couponIds } , isActive:true});
 
     return res.status(200).json({ success: true, coupons });
   } catch (error) {
@@ -841,6 +874,7 @@ export const getUserCoupons = async (req, res) => {
     return res.status(500).json({ success: false, message: 'Server error' });
   }
 };
+
 
 export const getPropertyRatings = async (req, res) => {
   try {

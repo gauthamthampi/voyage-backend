@@ -8,6 +8,7 @@ const couponSchema = new mongoose.Schema({
     description: { type: String, required: true }, 
     discountValue: { type: Number, required: true }, 
     minPurchaseAmount: { type: Number, default: 0 }, 
+    type:{type: String},
     timesUsed: { type: Number, default: 0 }, 
     isActive: { type: Boolean, default: true }, 
     timestamp: { type: Date, default: Date.now }

@@ -9,7 +9,8 @@ import { signupPost,loginPost,createUserGoogle,getUserDetailsByEmail,
         cancelBookingProfile, getAddRating,fetchPropertyRatings,  getAvailableFilteredProperties, 
         getAllBlogs, getArticle, getUserCoupons,
         getPropertyRatings,
-        getCouponDetails}  from "../controllers/user.js";
+        getCouponDetails,
+        getUserCouponsProfile}  from "../controllers/user.js";
 
 router.post("/signup",signupPost)
 router.post("/login",loginPost)
@@ -36,13 +37,14 @@ router.get('/api/getBookingDetails/:bookingId',getBookingDetails)
 router.get('/api/userprofile/bookings',checkBlocked,getProfileBookings)
 router.post('/api/userprofile/cancelbooking/:bookingId',checkBlocked,cancelBookingProfile)
 router.post('/api/submitRating',checkBlocked,getAddRating)
-router.get('/api/getRatings/:id',fetchPropertyRatings)
+router.get('/api/getRatings/:id',checkBlocked,fetchPropertyRatings)
 router.get('/api/getFilteredProperties',getAvailableFilteredProperties)
 router.get('/api/allblogs',getAllBlogs)
 router.get('/api/getArticle/:id',getArticle)
 router.get('/api/getUserCoupons',getUserCoupons)
 router.get('/api/property/:propertyId/average-rating',getPropertyRatings)
 router.get('/api/getCouponDetails/:id',getCouponDetails)
+router.get('/api/user/coupons',checkBlocked,getUserCouponsProfile)
 
 
 export default router;
