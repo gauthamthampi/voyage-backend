@@ -6,11 +6,11 @@ import path from 'path';
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 import bodyParser from 'body-parser';
-import router from './routes/user.js';
-import admrouter from './routes/admin.js';
-import premrouter from './routes/premium.js';
-import socketManager from './socket/socket.js';  
-import './middleware/cron.js'
+import router from './src/routes/user.js';
+import admrouter from './src/routes/admin.js';
+import premrouter from './src/routes/premium.js';
+import socketManager from './src/socket/socket.js';  
+import './src/middleware/cron.js'
 
 dotenv.config();
 
@@ -21,7 +21,7 @@ app.use(express.json());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(cors({
-  origin: ['https://thevoyage.live']
+  // origin: ['https://thevoyage.live']
 }));
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 app.use('/uploads', express.static('uploads'));
